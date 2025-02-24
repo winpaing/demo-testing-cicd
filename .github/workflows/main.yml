@@ -1,0 +1,54 @@
+name: Flask CI/CD Pipeline
+
+# ဘယ်အချိန်မှာ pipeline ကို run မလဲ (Trigger)
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Pipeline ထဲက အလုပ်တွေ (Jobs)
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest  # GitHub ရဲ့ Ubuntu VM ပေါ်မှာ run မယ်
+    steps:
+      # Step 1: Code ကို checkout လုပ်တယ်
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Python environment တည်ဆောက်တယ်
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # Step 3: Dependencies တွေ install လုဪ�
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Unit tests တွေ run တယ်
+      - name: Run tests
+        run: python test_app.py
+
+  deploy-to-docker:
+    needs: build-and-test  # Build နဲ့ Test အောင်မြင်မှ ဒီ job ကို run မယ်
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Code ကို checkout လုပ်တယ်
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Docker Hub ကို login လုဪ�
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Step 3: Docker image ကို build လုပ်ပြီး push တယ်
+      - name: Build and push Docker image
+        run: |
+          docker build . -t ${{ secrets.DOCKER_USERNAME }}/flask-cicd-demo:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/flask-cicd-demo:latest
